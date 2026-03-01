@@ -40,5 +40,8 @@
 #### Slope
 ```math
 slope = \frac{pH_{high} - pH_{low}}{V_{high} - V_{low}}
-
+```
+### Offset
+```math
 offset = pH_{mid} - (slope*V_{mid})
+```
