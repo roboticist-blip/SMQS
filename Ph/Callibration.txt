@@ -1,0 +1,56 @@
+Calibration Procedure (MANDATORY)
+
+If you skip this, your numbers are scientifically meaningless.
+
+What you need
+
+pH 4.00
+
+pH 6.86
+
+pH 9.18
+
+Room temperature (≈25 °C)
+
+Steps
+
+Put electrodes in pH 6.86
+
+Record ADC_mid
+
+Put electrodes in pH 4.00
+
+Record ADC_low
+
+Put electrodes in pH 9.18
+
+Record ADC_high
+
+Compute calibration (linear fit)
+Slope = (pH_high - pH_low) / (ADC_high - ADC_low)
+Intercept = pH_mid - (Slope * ADC_mid)
+
+Then update:
+
+CAL_A = Intercept;
+CAL_B = -Slope * 1023;
+
+Yes — negative slope is expected.
+
+4️⃣ ESP32 USERS (IMPORTANT ⚠️)
+
+If you are using ESP32, do NOT use this code as-is.
+
+ESP32 changes
+
+ADC is non-linear
+
+Default resolution = 12-bit (0–4095)
+
+Vref is not stable
+
+Minimum ESP32 fixes
+analogReadResolution(12);
+adcAttachPin(PH_ADC_PIN);
+
+And use ESP-IDF calibration or lookup table, otherwise pH will drift badly.
