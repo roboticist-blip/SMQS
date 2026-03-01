@@ -45,3 +45,6 @@ slope = \frac{pH_{high} - pH_{low}}{V_{high} - V_{low}}
 ```math
 offset = pH_{mid} - (slope*V_{mid})
 ```
+
+Then Replace this value in your main code
+
