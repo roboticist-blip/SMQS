@@ -1,0 +1,130 @@
+version: "3.9"
+
+# ════════════════════════════════════════════════════════
+#  IoT Telemetry Stack
+#  Services: mosquitto · influxdb · backend · frontend
+# ════════════════════════════════════════════════════════
+
+services:
+
+  # ────────────────────────────────────────────────────
+  # MQTT Broker — Mosquitto
+  # ────────────────────────────────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2.0.18
+    container_name: iot_mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"     # MQTT
+      - "9001:9001"     # MQTT over WebSockets
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - iot_net
+
+  # ────────────────────────────────────────────────────
+  # Time-Series Database — InfluxDB 2.x
+  # ────────────────────────────────────────────────────
+  influxdb:
+    image: influxdb:2.7
+    container_name: iot_influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE:        setup
+      DOCKER_INFLUXDB_INIT_USERNAME:    iot_admin
+      DOCKER_INFLUXDB_INIT_PASSWORD:    iot_admin_password
+      DOCKER_INFLUXDB_INIT_ORG:         iot_org
+      DOCKER_INFLUXDB_INIT_BUCKET:      sensor_data
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: iot_super_secret_token
+      DOCKER_INFLUXDB_INIT_RETENTION:   30d     # keep 30 days of data
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iot_net
+
+  # ────────────────────────────────────────────────────
+  # Python Backend — FastAPI + MQTT subscriber
+  # ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iot_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # MQTT
+      MQTT_HOST:     mosquitto
+      MQTT_PORT:     "1883"
+      MQTT_USER:     backend_service
+      MQTT_PASS:     backend_password
+      MQTT_TOPIC:    iot/sensors/data
+      # InfluxDB
+      INFLUXDB_URL:    http://influxdb:8086
+      INFLUXDB_TOKEN:  iot_super_secret_token
+      INFLUXDB_ORG:    iot_org
+      INFLUXDB_BUCKET: sensor_data
+      # CORS — restrict in production
+      CORS_ORIGINS: "*"
+      PORT: "8000"
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - iot_net
+
+  # ────────────────────────────────────────────────────
+  # Static Dashboard — nginx
+  # ────────────────────────────────────────────────────
+  frontend:
+    image: nginx:1.25-alpine
+    container_name: iot_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - iot_net
+
+# ────────────────────────────────────────────────────
+# Named volumes
+# ────────────────────────────────────────────────────
+volumes:
+  mosquitto_data:
+  mosquitto_logs:
+  influxdb_data:
+  influxdb_config:
+
+# ────────────────────────────────────────────────────
+# Network
+# ────────────────────────────────────────────────────
+networks:
+  iot_net:
+    driver: bridge

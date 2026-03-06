@@ -1,0 +1,16 @@
+# Mosquitto ACL Configuration
+# ─────────────────────────────
+# Format: user <username> / topic <permissions> <topic>
+
+# IoT gateway device — publish and subscribe
+user iot_user
+topic readwrite iot/#
+topic read $SYS/#
+
+# Backend service — full access to iot topics
+user backend_service
+topic readwrite iot/#
+
+# Dashboard read-only user
+user dashboard_user
+topic read iot/#
