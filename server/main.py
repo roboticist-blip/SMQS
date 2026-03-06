@@ -11,7 +11,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-
+import threading
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 from database import db
 from models import HealthResponse
 from mqtt_client import mqtt_service
-from routes.sensors import router as sensors_router
+from sensors import router as sensors_router
 
 # ─────────────────────────────────────────────
 # Logging

@@ -29,41 +29,27 @@ ESP8266 WiFi Gateway  ──WiFi──►  Mosquitto MQTT Broker
 ## Project Structure
 
 ```
-project-root/
-├── firmware/
-│   └── esp8266_gateway.ino        ESP8266 UART→MQTT gateway
-├── backend/
-│   ├── main.py                    FastAPI app entrypoint
-│   ├── mqtt_client.py             Paho-MQTT subscriber service
-│   ├── database.py                InfluxDB read/write layer
-│   ├── models.py                  Pydantic data models
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── routes/
-│       └── sensors.py             REST API routes
-├── frontend/
-│   ├── index.html                 Dashboard UI
-│   ├── style.css                  Industrial dark theme
-│   └── app.js                     Chart.js + data fetching
-├── mosquitto/
-│   └── config/
-│       ├── mosquitto.conf         Broker configuration
-│       └── acl                    Topic access control
-├── docker-compose.yml
-├── nginx.conf
-├── generate_mqtt_passwd.sh        One-time password setup
-└── README.md
+interface
+       |-- files
+              |--frontend
+                     |--app.js
+                     |--index.html
+                     |--style.css
+              |--mosquito
+                     |--mosquitto.conf
+                     |--passwd
+              |--database.py
+              |--main.py
+              |--model.py
+              |--mqtt_cilent.py
+              |--sensors.py
+              |--nginx.conf
+              |--Dockerfile
+              |--docker-compose.yml
+
 ```
 
 ---
-
-## Prerequisites
-
-| Tool | Min version |
-|------|-------------|
-| Docker | 24+ |
-| Docker Compose | v2 plugin |
-| Arduino IDE | 2.x (for firmware) |
 
 ---
 
@@ -146,14 +132,14 @@ Open `firmware/esp8266_gateway.ino` and edit the `Config` namespace:
 
 ```cpp
 namespace Config {
-  const char* WIFI_SSID     = "YOUR_WIFI_SSID";       // ← your WiFi
-  const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";   // ← your WiFi password
+  const char* WIFI_SSID     = "YOUR_WIFI_SSID";      
+  const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";  
 
-  const char* MQTT_HOST     = "192.168.1.100";        // ← IP of your Docker host
+  const char* MQTT_HOST     = "10.227.3.222";      
   const char* MQTT_USER     = "iot_user";
   const char* MQTT_PASS     = "iot_password";
 
-  const char* DEVICE_ID     = "stm32_gateway_01";   // ← unique device name
+  const char* DEVICE_ID     = "stm32_gateway_01";  
 }
 ```
 

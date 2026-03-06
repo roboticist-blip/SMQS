@@ -96,7 +96,7 @@ class InfluxDBService:
             .field("A2", int(A2))
             .field("A3", int(A3))
             .field("A4", int(A4))
-            .time(timestamp, WritePrecision.SECONDS)
+            .time(timestamp, WritePrecision.S)
         )
         try:
             self._write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)

@@ -62,7 +62,7 @@ services:
   # ────────────────────────────────────────────────────
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: iot_backend
     restart: unless-stopped
@@ -72,8 +72,8 @@ services:
       # MQTT
       MQTT_HOST:     mosquitto
       MQTT_PORT:     "1883"
-      MQTT_USER:     backend_service
-      MQTT_PASS:     backend_password
+      MQTT_USER:     iot_user
+      MQTT_PASS:     iot_password
       MQTT_TOPIC:    iot/sensors/data
       # InfluxDB
       INFLUXDB_URL:    http://influxdb:8086
