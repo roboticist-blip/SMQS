@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STM32 ADC · IoT Telemetry Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/3.6.0/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ── Header ──────────────────────────────────── -->
+  <header class="header">
+    <div class="header-logo">
+      <div class="logo-mark">STM</div>
+      <div>
+        <div class="logo-text">ADC TELEMETRY</div>
+        <div class="logo-sub">STM32 · 5-CHANNEL · 12-BIT</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="status-pill">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">CONNECTING</span>
+      </div>
+
+      <div class="countdown-ring" title="Next refresh">
+        <svg viewBox="0 0 28 28" width="28" height="28">
+          <circle class="track"    cx="14" cy="14" r="11"/>
+          <circle class="progress" cx="14" cy="14" r="11" id="countdownProgress"
+                  style="stroke-dasharray:69.12;stroke-dashoffset:0;"/>
+        </svg>
+      </div>
+
+      <button class="refresh-btn" id="refreshBtn" title="Refresh now">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        REFRESH
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Sidebar ─────────────────────────────────── -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Devices</div>
+      <ul class="device-list" id="deviceList">
+        <li class="device-item active">
+          <span class="device-icon live"></span>
+          <span class="device-name">loading…</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Time Range</div>
+      <div class="range-selector">
+        <button class="range-btn active" data-minutes="15">Last 15 min</button>
+        <button class="range-btn"        data-minutes="60">Last 1 hour</button>
+        <button class="range-btn"        data-minutes="360">Last 6 hours</button>
+        <button class="range-btn"        data-minutes="1440">Last 24 hours</button>
+      </div>
+    </div>
+
+    <!-- Channel legend -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Channels</div>
+      <div>
+        <div class="mini-stat">
+          <span class="mini-stat-label" style="display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#ff6b35;display:inline-block"></span>A0
+          </span>
+          <span class="mini-stat-value" id="valA0sidebar">—</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-stat-label" style="display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block"></span>A1
+          </span>
+          <span class="mini-stat-value" id="valA1sidebar">—</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-stat-label" style="display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;display:inline-block"></span>A2
+          </span>
+          <span class="mini-stat-value" id="valA2sidebar">—</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-stat-label" style="display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#34d399;display:inline-block"></span>A3
+          </span>
+          <span class="mini-stat-value" id="valA3sidebar">—</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-stat-label" style="display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block"></span>A4
+          </span>
+          <span class="mini-stat-value" id="valA4sidebar">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">System</div>
+      <div>
+        <div class="mini-stat">
+          <span class="mini-stat-label">Devices</span>
+          <span class="mini-stat-value" id="footerDevice">—</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-stat-label">Frames rx</span>
+          <span class="mini-stat-value" id="footerMsgs">0</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-stat-label">History pts</span>
+          <span class="mini-stat-value" id="dataCount">—</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-stat-label">Updated</span>
+          <span class="mini-stat-value" id="lastUpdateTime">—</span>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────────── -->
+  <main class="main">
+
+    <div class="alert-bar" id="alertBar"></div>
+
+    <!-- ── Metric cards (one per channel) ───────── -->
+    <div>
+      <div class="section-header">
+        <span class="section-title">Live ADC Readings — 12-bit (0–4095)</span>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="cards-grid">
+
+        <!-- A0 -->
+        <div class="metric-card" style="--card-accent:#ff6b35">
+          <div class="card-header">
+            <span class="card-label">Channel A0</span>
+            <span class="card-icon" style="font-family:var(--mono);font-size:11px;color:#ff6b35">ADC</span>
+          </div>
+          <div class="card-value"><span id="valA0">—</span><span class="unit">/4095</span></div>
+          <span class="card-trend flat" id="trendA0">—</span>
+          <div class="adc-bar-track"><div class="adc-bar-fill" id="barA0" style="background:#ff6b35"></div></div>
+          <div class="card-sparkline"><canvas id="sparkA0" height="36"></canvas></div>
+          <div class="card-meta" id="metaA0">awaiting data…</div>
+        </div>
+
+        <!-- A1 -->
+        <div class="metric-card" style="--card-accent:#38bdf8">
+          <div class="card-header">
+            <span class="card-label">Channel A1</span>
+            <span class="card-icon" style="font-family:var(--mono);font-size:11px;color:#38bdf8">ADC</span>
+          </div>
+          <div class="card-value"><span id="valA1">—</span><span class="unit">/4095</span></div>
+          <span class="card-trend flat" id="trendA1">—</span>
+          <div class="adc-bar-track"><div class="adc-bar-fill" id="barA1" style="background:#38bdf8"></div></div>
+          <div class="card-sparkline"><canvas id="sparkA1" height="36"></canvas></div>
+          <div class="card-meta" id="metaA1">awaiting data…</div>
+        </div>
+
+        <!-- A2 -->
+        <div class="metric-card" style="--card-accent:#a78bfa">
+          <div class="card-header">
+            <span class="card-label">Channel A2</span>
+            <span class="card-icon" style="font-family:var(--mono);font-size:11px;color:#a78bfa">ADC</span>
+          </div>
+          <div class="card-value"><span id="valA2">—</span><span class="unit">/4095</span></div>
+          <span class="card-trend flat" id="trendA2">—</span>
+          <div class="adc-bar-track"><div class="adc-bar-fill" id="barA2" style="background:#a78bfa"></div></div>
+          <div class="card-sparkline"><canvas id="sparkA2" height="36"></canvas></div>
+          <div class="card-meta" id="metaA2">awaiting data…</div>
+        </div>
+
+        <!-- A3 -->
+        <div class="metric-card" style="--card-accent:#34d399">
+          <div class="card-header">
+            <span class="card-label">Channel A3</span>
+            <span class="card-icon" style="font-family:var(--mono);font-size:11px;color:#34d399">ADC</span>
+          </div>
+          <div class="card-value"><span id="valA3">—</span><span class="unit">/4095</span></div>
+          <span class="card-trend flat" id="trendA3">—</span>
+          <div class="adc-bar-track"><div class="adc-bar-fill" id="barA3" style="background:#34d399"></div></div>
+          <div class="card-sparkline"><canvas id="sparkA3" height="36"></canvas></div>
+          <div class="card-meta" id="metaA3">awaiting data…</div>
+        </div>
+
+        <!-- A4 -->
+        <div class="metric-card" style="--card-accent:#fbbf24">
+          <div class="card-header">
+            <span class="card-label">Channel A4</span>
+            <span class="card-icon" style="font-family:var(--mono);font-size:11px;color:#fbbf24">ADC</span>
+          </div>
+          <div class="card-value"><span id="valA4">—</span><span class="unit">/4095</span></div>
+          <span class="card-trend flat" id="trendA4">—</span>
+          <div class="adc-bar-track"><div class="adc-bar-fill" id="barA4" style="background:#fbbf24"></div></div>
+          <div class="card-sparkline"><canvas id="sparkA4" height="36"></canvas></div>
+          <div class="card-meta" id="metaA4">awaiting data…</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Charts ─────────────────────────────────── -->
+    <div>
+      <div class="section-header">
+        <span class="section-title">Time Series</span>
+        <div class="section-line"></div>
+        <span class="chart-timestamp" id="chartTimestamp"></span>
+      </div>
+
+      <!-- Combined all-channels -->
+      <div class="chart-panel" style="margin-bottom:12px">
+        <div class="chart-header">
+          <span class="chart-title">All Channels — A0 through A4</span>
+        </div>
+        <div class="chart-container" style="height:240px">
+          <canvas id="chartCombined"></canvas>
+        </div>
+      </div>
+
+      <!-- Individual channel charts grid (2×3 then 1 full) -->
+      <div class="charts-grid">
+        <div class="chart-panel">
+          <div class="chart-header">
+            <span class="chart-title" style="color:#ff6b35">A0</span>
+          </div>
+          <div class="chart-container"><canvas id="chartA0"></canvas></div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="chart-header">
+            <span class="chart-title" style="color:#38bdf8">A1</span>
+          </div>
+          <div class="chart-container"><canvas id="chartA1"></canvas></div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="chart-header">
+            <span class="chart-title" style="color:#a78bfa">A2</span>
+          </div>
+          <div class="chart-container"><canvas id="chartA2"></canvas></div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="chart-header">
+            <span class="chart-title" style="color:#34d399">A3</span>
+          </div>
+          <div class="chart-container"><canvas id="chartA3"></canvas></div>
+        </div>
+
+        <div class="chart-panel full-width">
+          <div class="chart-header">
+            <span class="chart-title" style="color:#fbbf24">A4</span>
+          </div>
+          <div class="chart-container"><canvas id="chartA4"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Data table ────────────────────────────── -->
+    <div>
+      <div class="section-header">
+        <span class="section-title">Recent Frames</span>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="data-table-panel">
+        <div class="table-header">
+          <span class="table-title">Raw ADC Log</span>
+          <span class="table-count" id="tableCount">—</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Device ID</th>
+                <th style="color:#ff6b35">A0</th>
+                <th style="color:#38bdf8">A1</th>
+                <th style="color:#a78bfa">A2</th>
+                <th style="color:#34d399">A3</th>
+                <th style="color:#fbbf24">A4</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-strip">
+      <div class="footer-info">
+        <span>IoT Telemetry Dashboard v1.0</span>
+        <span>STM32 HAL_UART → ESP8266 → MQTT → FastAPI → InfluxDB</span>
+        <span>Auto-refresh: 3s</span>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
