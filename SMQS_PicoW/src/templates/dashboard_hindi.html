@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Soil Health Monitor</title>
+
+  <!-- Google Fonts: Syne for headings, DM Sans for body -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+
+  <style>
+    /* ───────────── RESET & BASE ───────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #f5f0e8;          /* warm off-white — feels earthy */
+      --surface:      #ffffff;
+      --border:       #e0d8cc;
+      --text-dark:    #1a1a1a;
+      --text-mid:     #4a4a4a;
+      --text-light:   #888880;
+
+      --green:        #2d6a4f;          /* deep forest green */
+      --green-light:  #d8f3dc;
+      --amber:        #e67c1b;
+      --amber-light:  #fdeac9;
+      --red:          #c0392b;
+      --red-light:    #fde8e6;
+      --blue:         #1a6fa8;
+      --blue-light:   #daedf9;
+      --soil:         #7a5c3b;          /* soil brown accent */
+      --soil-light:   #ede0d0;
+
+      --radius:       16px;
+      --shadow:       0 2px 12px rgba(0,0,0,0.07);
+      --shadow-lg:    0 8px 32px rgba(0,0,0,0.10);
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text-dark);
+      min-height: 100vh;
+      padding: 0 0 48px;
+    }
+
+    /* ───────────── HEADER ───────────── */
+    header {
+      background: var(--green);
+      color: white;
+      padding: 24px 32px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .header-left h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+
+    .header-left p {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .status-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: rgba(255,255,255,0.15);
+      padding: 6px 14px;
+      border-radius: 100px;
+    }
+
+    .dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: #6ee7b7;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    #last-update {
+      font-size: 0.78rem;
+      opacity: 0.7;
+    }
+
+    /* ───────────── MAIN ACTIVITY BANNER ───────────── */
+    .main-container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 20px 0;
+    }
+
+    .activity-banner {
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+      transition: background 0.5s ease, border 0.5s ease;
+      border: 2px solid transparent;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .activity-banner.HIGH   { background: var(--green-light);  border-color: var(--green); }
+    .activity-banner.MEDIUM { background: var(--amber-light);  border-color: var(--amber); }
+    .activity-banner.LOW    { background: var(--red-light);    border-color: var(--red); }
+    .activity-banner.WAITING{ background: var(--soil-light);   border-color: var(--soil); }
+
+    .banner-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-mid);
+    }
+
+    .banner-value {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.4rem, 8vw, 3.8rem);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -1px;
+      transition: color 0.5s ease;
+    }
+
+    .banner-value.HIGH    { color: var(--green); }
+    .banner-value.MEDIUM  { color: var(--amber); }
+    .banner-value.LOW     { color: var(--red); }
+    .banner-value.WAITING { color: var(--soil); }
+
+    .banner-health {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-top: 6px;
+      color: var(--text-mid);
+    }
+
+    .banner-icon {
+      font-size: clamp(3rem, 10vw, 5rem);
+      line-height: 1;
+    }
+
+    /* ───────────── SENSOR GRID ───────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 20px 18px;
+      box-shadow: var(--shadow);
+      transition: transform 0.2s;
+    }
+
+    .card:hover { transform: translateY(-2px); }
+
+    .card-icon {
+      font-size: 1.6rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .card-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 6px;
+    }
+
+    .card-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 2.1rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      line-height: 1;
+      letter-spacing: -0.5px;
+    }
+
+    .card-unit {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-light);
+      margin-left: 2px;
+    }
+
+    .card-status {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 100px;
+      display: inline-block;
+    }
+
+    /* Status badge colors */
+    .badge-good    { background: var(--green-light); color: var(--green); }
+    .badge-ok      { background: var(--amber-light); color: var(--amber); }
+    .badge-low     { background: var(--red-light);   color: var(--red);   }
+    .badge-neutral { background: var(--blue-light);  color: var(--blue);  }
+
+    /* ───────────── ADVICE SECTION ───────────── */
+    .advice-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+
+    .advice-card h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #advice-text {
+      font-size: 0.95rem;
+      color: var(--text-mid);
+      line-height: 1.6;
+    }
+
+    /* ───────────── HINDI ADVICE ───────────── */
+    .hindi-divider {
+      border: none;
+      border-top: 1.5px dashed var(--border);
+      margin: 16px 0 14px;
+    }
+
+    .hindi-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 8px;
+    }
+
+    #advice-text-hindi {
+      font-size: 0.95rem;
+      color: var(--text-mid);
+      line-height: 1.8;
+    }
+
+    /* ───────────── FOOTER ───────────── */
+    footer {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-light);
+      margin-top: 40px;
+    }
+
+    /* ───────────── REFRESH INDICATOR ───────────── */
+    .refresh-bar-wrap {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+
+    .refresh-bar {
+      height: 100%;
+      background: var(--green);
+      border-radius: 2px;
+      width: 100%;
+      transform-origin: left;
+      animation: shrink 5s linear infinite;
+    }
+
+    @keyframes shrink {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
+    }
+
+    /* ───────────── VALUE UPDATE FLASH ───────────── */
+    @keyframes flash {
+      0%   { background-color: #d8f3dc; }
+      100% { background-color: transparent; }
+    }
+
+    .flash { animation: flash 0.8s ease-out; }
+
+    /* ───────────── RESPONSIVE ───────────── */
+    @media (max-width: 520px) {
+      header { padding: 18px 20px 16px; }
+      .activity-banner { padding: 22px 20px; }
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══════════ HEADER ══════════ -->
+  <header>
+    <div class="header-left">
+      <h1>🌱 Soil Health Monitor</h1>
+      <p>Real-time microbial activity dashboard</p>
+    </div>
+    <div class="header-right">
+      <div class="status-dot">
+        <span class="dot"></span>
+        Live Feed
+      </div>
+      <span id="last-update">Waiting for data…</span>
+    </div>
+  </header>
+
+  <div class="main-container">
+
+    <!-- ══════════ REFRESH PROGRESS BAR ══════════ -->
+    <div class="refresh-bar-wrap">
+      <div class="refresh-bar"></div>
+    </div>
+
+    <!-- ══════════ MAIN ACTIVITY BANNER ══════════ -->
+    <div class="activity-banner WAITING" id="activity-banner">
+      <div>
+        <div class="banner-label">Microbial Activity</div>
+        <div class="banner-value WAITING" id="activity-value">—</div>
+        <div class="banner-health" id="soil-health-text">Waiting for sensor data…</div>
+      </div>
+      <div class="banner-icon" id="activity-icon">⏳</div>
+    </div>
+
+    <!-- ══════════ SENSOR CARDS ══════════ -->
+    <div class="grid">
+
+      <!-- Soil Moisture -->
+      <div class="card">
+        <span class="card-icon">💧</span>
+        <div class="card-label">Soil Moisture</div>
+        <div>
+          <span class="card-value" id="val-moisture">--</span>
+          <span class="card-unit">%</span>
+        </div>
+        <span class="card-status badge-neutral" id="badge-moisture">Reading…</span>
+      </div>
+
+      <!-- Soil Temperature -->
+      <div class="card">
+        <span class="card-icon">🌡️</span>
+        <div class="card-label">Soil Temperature</div>
+        <div>
+          <span class="card-value" id="val-soil-temp">--</span>
+          <span class="card-unit">°C</span>
+        </div>
+        <span class="card-status badge-neutral" id="badge-soil-temp">Reading…</span>
+      </div>
+
+      <!-- Chamber Humidity -->
+      <div class="card">
+        <span class="card-icon">🌫️</span>
+        <div class="card-label">Chamber Humidity</div>
+        <div>
+          <span class="card-value" id="val-humidity">--</span>
+          <span class="card-unit">%</span>
+        </div>
+        <span class="card-status badge-neutral" id="badge-humidity">Reading…</span>
+      </div>
+
+      <!-- pH -->
+      <div class="card">
+        <span class="card-icon">🧪</span>
+        <div class="card-label">Soil pH</div>
+        <div>
+          <span class="card-value" id="val-ph">--</span>
+          <span class="card-unit">pH</span>
+        </div>
+        <span class="card-status badge-neutral" id="badge-ph">Reading…</span>
+      </div>
+
+      <!-- CO2 Measure -->
+      <div class="card">
+        <span class="card-icon">💨</span>
+        <div class="card-label">CO₂ Measure</div>
+        <div>
+          <span class="card-value" id="val-gas">--</span>
+          <span class="card-unit">ppm</span>
+        </div>
+        <span class="card-status badge-neutral" id="badge-gas">Reading…</span>
+      </div>
+
+      <!-- Gas Rate -->
+      <div class="card">
+        <span class="card-icon">📈</span>
+        <div class="card-label">Gas Rate</div>
+        <div>
+          <span class="card-value" id="val-rate">--</span>
+          <span class="card-unit">ppm/s</span>
+        </div>
+        <span class="card-status badge-neutral" id="badge-rate">Reading…</span>
+      </div>
+
+    </div><!-- /grid -->
+
+    <!-- ══════════ FARMER ADVICE ══════════ -->
+    <div class="advice-card">
+      <h2>🌾 Farmer Advice</h2>
+      <p id="advice-text">Waiting for sensor readings to generate advice…</p>
+
+      <hr class="hindi-divider" />
+      <div class="hindi-label">किसान सलाह (हिंदी)</div>
+      <p id="advice-text-hindi">सेंसर डेटा का इंतज़ार है…</p>
+    </div>
+
+  </div><!-- /main-container -->
+
+  <footer>
+    <p>Soil Microbial Activity Monitor &nbsp;|&nbsp; Auto-refreshes every 5 seconds &nbsp;|&nbsp; Built with Raspberry Pi Pico W</p>
+  </footer>
+
+
+  <!-- ══════════ JAVASCRIPT ══════════ -->
+  <script>
+    // ─── CONFIG ───
+    const API_URL       = "/api";          // Same server endpoint
+    const REFRESH_MS    = 5000;            // 5-second auto-refresh
+
+    // ─── HELPERS ───
+    function el(id) { return document.getElementById(id); }
+
+    function flashElement(elem) {
+      elem.classList.remove("flash");
+      void elem.offsetWidth;               // Force reflow to restart animation
+      elem.classList.add("flash");
+    }
+
+    // Classify moisture into badge
+    function moistureBadge(v) {
+      if (v >= 40 && v <= 70) return ["badge-good", "Optimal"];
+      if (v >= 25 && v < 40)  return ["badge-ok",   "A bit dry"];
+      if (v > 70 && v <= 85)  return ["badge-ok",   "Quite wet"];
+      if (v < 25)             return ["badge-low",   "Too dry"];
+      return ["badge-low", "Waterlogged"];
+    }
+
+    // Classify soil temperature
+    function tempBadge(v) {
+      if (v >= 15 && v <= 30) return ["badge-good", "Optimal"];
+      if (v >= 10 && v < 15)  return ["badge-ok",   "Cool"];
+      if (v > 30 && v <= 38)  return ["badge-ok",   "Warm"];
+      if (v < 10)             return ["badge-low",   "Too cold"];
+      return ["badge-low", "Too hot"];
+    }
+
+    // Classify pH
+    function phBadge(v) {
+      if (v >= 6.0 && v <= 7.5) return ["badge-good", "Optimal"];
+      if (v >= 5.5 && v < 6.0)  return ["badge-ok",   "Slightly acidic"];
+      if (v > 7.5 && v <= 8.0)  return ["badge-ok",   "Slightly alkaline"];
+      if (v < 5.5)              return ["badge-low",   "Too acidic"];
+      return ["badge-low", "Too alkaline"];
+    }
+
+    // Classify humidity
+    function humBadge(v) {
+      if (v >= 50 && v <= 80)   return ["badge-good", "Good"];
+      if (v >= 35 && v < 50)    return ["badge-ok",   "Low"];
+      if (v > 80 && v <= 95)    return ["badge-ok",   "High"];
+      return ["badge-low", "Extreme"];
+    }
+
+    // Generate farmer-friendly advice (English)
+    function buildAdvice(data) {
+      const tips = [];
+      const m = parseFloat(data.moisture);
+      const t = parseFloat(data.soil_temp);
+      const p = parseFloat(data.ph);
+      const h = parseFloat(data.humidity);
+      const a = data.activity;
+
+      if (!isNaN(m)) {
+        if (m < 25)      tips.push("💧 Soil is too dry. Consider irrigating your field.");
+        else if (m > 85) tips.push("⚠️ Soil is waterlogged. Improve drainage if possible.");
+        else if (m >= 40 && m <= 70) tips.push("✅ Soil moisture is in the ideal range for microbial activity.");
+      }
+
+      if (!isNaN(t)) {
+        if (t < 10)      tips.push("❄️ Soil temperature is very low. Microbial activity will be minimal.");
+        else if (t > 38) tips.push("🔥 Soil is too warm. Mulching may help retain moisture and cool the soil.");
+        else if (t >= 15 && t <= 30) tips.push("✅ Soil temperature is optimal for microbial health.");
+      }
+
+      if (!isNaN(p)) {
+        if (p < 5.5)     tips.push("🧪 Soil is too acidic (pH " + p + "). Consider adding agricultural lime.");
+        else if (p > 8.0) tips.push("🧪 Soil is too alkaline (pH " + p + "). Sulfur amendments may help.");
+        else              tips.push("✅ Soil pH looks good for nutrient availability.");
+      }
+
+      if (a === "HIGH")        tips.push("🌱 Microbial activity is HIGH — your soil ecosystem is thriving!");
+      else if (a === "MEDIUM") tips.push("🌿 Microbial activity is MEDIUM — conditions are acceptable but can be improved.");
+      else if (a === "LOW")    tips.push("⚠️ Microbial activity is LOW. Check moisture, temperature, and add organic matter.");
+
+      return tips.length ? tips.join(" &nbsp; | &nbsp; ") : "Collecting enough data to generate advice…";
+    }
+
+    // Generate farmer-friendly advice (Hindi)
+    function buildAdviceHindi(data) {
+      const tips = [];
+      const m = parseFloat(data.moisture);
+      const t = parseFloat(data.soil_temp);
+      const p = parseFloat(data.ph);
+      const h = parseFloat(data.humidity);
+      const a = data.activity;
+
+      if (!isNaN(m)) {
+        if (m < 25)      tips.push("💧 मिट्टी बहुत सूखी है। खेत में सिंचाई करने पर विचार करें।");
+        else if (m > 85) tips.push("⚠️ मिट्टी में जलभराव हो गया है। यदि संभव हो तो जल निकासी सुधारें।");
+        else if (m >= 40 && m <= 70) tips.push("✅ मिट्टी की नमी सूक्ष्मजीव गतिविधि के लिए आदर्श स्तर पर है।");
+      }
+
+      if (!isNaN(t)) {
+        if (t < 10)      tips.push("❄️ मिट्टी का तापमान बहुत कम है। सूक्ष्मजीव गतिविधि न्यूनतम रहेगी।");
+        else if (t > 38) tips.push("🔥 मिट्टी बहुत गर्म है। मल्चिंग से नमी बनाए रखने और मिट्टी को ठंडा रखने में मदद मिल सकती है।");
+        else if (t >= 15 && t <= 30) tips.push("✅ मिट्टी का तापमान सूक्ष्मजीव स्वास्थ्य के लिए उपयुक्त है।");
+      }
+
+      if (!isNaN(p)) {
+        if (p < 5.5)     tips.push("🧪 मिट्टी बहुत अम्लीय है (pH " + p + ")। कृषि चूना (Agricultural Lime) डालने पर विचार करें।");
+        else if (p > 8.0) tips.push("🧪 मिट्टी बहुत क्षारीय है (pH " + p + ")। सल्फर संशोधन से सुधार हो सकता है।");
+        else              tips.push("✅ मिट्टी का pH पोषक तत्वों की उपलब्धता के लिए ठीक है।");
+      }
+
+      if (a === "HIGH")        tips.push("🌱 सूक्ष्मजीव गतिविधि उच्च (HIGH) है — आपकी मिट्टी का पारिस्थितिकी तंत्र बेहतरीन स्थिति में है!");
+      else if (a === "MEDIUM") tips.push("🌿 सूक्ष्मजीव गतिविधि मध्यम (MEDIUM) है — स्थिति स्वीकार्य है लेकिन सुधार की गुंजाइश है।");
+      else if (a === "LOW")    tips.push("⚠️ सूक्ष्मजीव गतिविधि कम (LOW) है। नमी, तापमान जाँचें और जैविक खाद डालें।");
+
+      return tips.length ? tips.join(" &nbsp; | &nbsp; ") : "पर्याप्त डेटा एकत्र होने पर सलाह उत्पन्न होगी…";
+    }
+
+    // Activity → icon + health text + banner class
+    function activityInfo(a) {
+      const map = {
+        HIGH:    { icon: "🌿", health: "Soil Health: EXCELLENT", cls: "HIGH" },
+        MEDIUM:  { icon: "🌾", health: "Soil Health: FAIR",      cls: "MEDIUM" },
+        LOW:     { icon: "🍂", health: "Soil Health: POOR",      cls: "LOW" },
+        WAITING: { icon: "⏳", health: "Waiting for sensor data…", cls: "WAITING" },
+      };
+      return map[a] || map["WAITING"];
+    }
+
+    // ─── UPDATE DOM ───
+    function updateDashboard(data) {
+      // Values
+      el("val-moisture").textContent  = data.moisture  ?? "--";
+      el("val-soil-temp").textContent = data.soil_temp ?? "--";
+      el("val-humidity").textContent  = data.humidity  ?? "--";
+      el("val-ph").textContent        = data.ph        ?? "--";
+      el("val-gas").textContent       = data.gas_ppm   ?? "--";
+      el("val-rate").textContent      = data.gas_rate  !== undefined ? parseFloat(data.gas_rate).toFixed(3) : "--";
+
+      // Badges
+      const [mc, mt] = moistureBadge(parseFloat(data.moisture));
+      el("badge-moisture").className  = `card-status ${mc}`;
+      el("badge-moisture").textContent = mt;
+
+      const [tc, tt] = tempBadge(parseFloat(data.soil_temp));
+      el("badge-soil-temp").className  = `card-status ${tc}`;
+      el("badge-soil-temp").textContent = tt;
+
+      const [hc, ht] = humBadge(parseFloat(data.humidity));
+      el("badge-humidity").className  = `card-status ${hc}`;
+      el("badge-humidity").textContent = ht;
+
+      const [pc, pt] = phBadge(parseFloat(data.ph));
+      el("badge-ph").className  = `card-status ${pc}`;
+      el("badge-ph").textContent = pt;
+
+      // Gas / rate badges
+      const gasPpm = parseFloat(data.gas_ppm);
+      const gasGoodClass = gasPpm > 800 ? "badge-ok" : "badge-good";
+      el("badge-gas").className   = `card-status ${gasGoodClass}`;
+      el("badge-gas").textContent = gasPpm > 800 ? "Elevated" : "Normal";
+
+      const rate = parseFloat(data.gas_rate);
+      const rateClass = rate > 0.5 ? "badge-good" : rate > 0.1 ? "badge-ok" : "badge-neutral";
+      el("badge-rate").className   = `card-status ${rateClass}`;
+      el("badge-rate").textContent = rate > 0.5 ? "Rising fast" : rate > 0.1 ? "Rising" : "Stable";
+
+      // Activity banner
+      const a     = (data.activity || "WAITING").toUpperCase();
+      const info  = activityInfo(a);
+      const banner = el("activity-banner");
+      const valEl  = el("activity-value");
+
+      banner.className           = `activity-banner ${info.cls}`;
+      valEl.className            = `banner-value ${info.cls}`;
+      valEl.textContent          = a;
+      el("activity-icon").textContent    = info.icon;
+      el("soil-health-text").textContent = info.health;
+
+      // Flash banner on change
+      flashElement(banner);
+
+      // Advice (English + Hindi)
+      el("advice-text").innerHTML       = buildAdvice(data);
+      el("advice-text-hindi").innerHTML = buildAdviceHindi(data);
+
+      // Timestamp
+      el("last-update").textContent = "Last update: " + (data.last_update || new Date().toLocaleTimeString());
+    }
+
+    // ─── FETCH DATA ───
+    async function fetchData() {
+      try {
+        const response = await fetch(API_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const data = await response.json();
+        updateDashboard(data);
+      } catch (err) {
+        el("last-update").textContent = "⚠️ Connection error — retrying…";
+        console.error("Fetch error:", err);
+      }
+    }
+
+    // ─── BOOT ───
+    fetchData();                              // Fetch immediately on load
+    setInterval(fetchData, REFRESH_MS);       // Then every 5 seconds
+  </script>
+
+</body>
+</html>
